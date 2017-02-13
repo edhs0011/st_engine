@@ -1,7 +1,12 @@
-from util.preprocess import to_argus
+import argparse
 import zlib
 import pandas as pd
 from StringIO import StringIO
+from util.preprocess import to_argus
+from subprocess import Popen, PIPE, STDOUT
+import logging.config
+logging.config.fileConfig('etc/log/log.conf')
+import logger
 
 class Detection:
 	def __init__(self, file_path):
@@ -15,11 +20,18 @@ class Detection:
 		self.df = pd.read_csv(stringIO)
 
 	def run(self):
-		for data in to_argus(self.df):
-			print data
+		data = to_argus(self.df)
+		# to call the detector by python slips.py
+		p = Popen(['python', 'slips.py'], stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+		stdout = p.communicate(input=data)[0]
+		print stdout.decode()
 
 def main():
-	detection = Detection("/home/ehsieh/diamond-netflow/1486598402.csv.zlib")
+	parser = argparse.ArgumentParser()
+	parser.add_argument("file_path", help="the input of netflow file", type=str)
+	args = parser.parse_args()
+
+	detection = Detection(args.file_path)
 	detection.run()
 
 if __name__ == "__main__":
