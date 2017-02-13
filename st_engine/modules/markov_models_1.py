@@ -7,6 +7,9 @@ import math
 from os import listdir
 from os.path import isfile, join
 import stf.common.markov_chains as mc
+import logging.config
+logging.config.fileConfig('etc/log/log.conf')
+import logger
 
 
 class Model():
@@ -153,7 +156,7 @@ class MarkovModelsDetection():
                 self.set_model_to_detect(join(folder, file))
             return True
         except OSError:
-            print 'Inexistent directory for folders.'
+            logging.error('Inexistent directory for folders.')
             return False
 
     def set_model_to_detect(self, file):
@@ -173,7 +176,7 @@ class MarkovModelsDetection():
         model.set_label(cPickle.load(input))
         model.set_threshold(cPickle.load(input))
         self.models.append(model)
-        print '\tAdding model {} to the list.'.format(model.get_label())
+        logging.debug('\tAdding model {} to the list.'.format(model.get_label()))
         input.close()
 
     def detect(self, tuple, verbose):
@@ -190,7 +193,7 @@ class MarkovModelsDetection():
             # Only detect states with more than 3 letters
             if len(tuple.get_state()) < 4:
                 if self.verbose > 3:
-                    print '\t-> State too small'
+                    logging.debug('\t-> State too small')
                 return (False, False, False)
             # Use the current models for detection
             for model in self.models:
@@ -220,16 +223,16 @@ class MarkovModelsDetection():
                     except ZeroDivisionError:
                         prob_distance = -1
                 if self.verbose > 2:
-                    print '\t\tTrained Model: {}. Label: {}. Threshold: {}, State: {}'.format(model.get_id(), model.get_label(), model.get_threshold(), train_sequence)
-                    print '\t\t\tTest Model: {}. State: {}'.format(tuple.get_id(), tuple.get_state())
-                    print '\t\t\tTrain prob: {}'.format(training_original_prob)
-                    print '\t\t\tTest prob: {}'.format(test_prob)
-                    print '\t\t\tDistance: {}'.format(prob_distance)
+                    logging.debug('\t\tTrained Model: {}. Label: {}. Threshold: {}, State: {}'.format(model.get_id(), model.get_label(), model.get_threshold(), train_sequence))
+                    logging.debug('\t\t\tTest Model: {}. State: {}'.format(tuple.get_id(), tuple.get_state()))
+                    logging.debug('\t\t\tTrain prob: {}'.format(training_original_prob))
+                    logging.debug('\t\t\tTest prob: {}'.format(test_prob))
+                    logging.debug('\t\t\tDistance: {}'.format(prob_distance))
                     if self.verbose > 4:
-                        print '\t\t\tTrained Matrix:'
+                        logging.debug('\t\t\tTrained Matrix:')
                         matrix = model.get_matrix()
                         for i in matrix:
-                            print '\t\t\t\t{}:{}'.format(i, matrix[i])
+                            logging.debug('\t\t\t\t{}:{}'.format(i, matrix[i]))
                 # If we matched and we are the best so far
                 if prob_distance >= 1 and prob_distance <= model.get_threshold() and prob_distance < best_distance_so_far:
                     # Store for this model, where it had its match. Len of the state. So later we can cut the state.
@@ -238,7 +241,7 @@ class MarkovModelsDetection():
                     best_model_so_far = model
                     best_distance_so_far = prob_distance
                     if self.verbose > 3:
-                        print '\t\t\t\tThis model is the best so far. State len: {}'.format(len(tuple.get_state()))
+                        logging.debug('\t\t\t\tThis model is the best so far. State len: {}'.format(len(tuple.get_state())))
             # If we detected something
             if best_model_so_far:
                 return (best_model_so_far.matched, best_model_so_far.get_label(), best_model_so_far.get_best_model_matching_len())
@@ -247,12 +250,10 @@ class MarkovModelsDetection():
                 return (False, False, False)
                 #return (False, False)
         except Exception as inst:
-            print 'Problem in detect() in markov_models_1'
-            print type(inst)     # the exception instance
-            print inst.args      # arguments stored in .args
-            print inst           # __str__ allows args to printed directly
+            logging.exception('Problem in detect() in markov_models_1')
+            logging.exception(type(inst))     # the exception instance
+            logging.exception(inst.args)      # arguments stored in .args
+            logging.exception(inst)           # __str__ allows args to printed directly
             sys.exit(-1)
-
-
 
 __markov_models__ = MarkovModelsDetection()
