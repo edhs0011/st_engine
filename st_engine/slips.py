@@ -19,8 +19,6 @@ import logging.config
 logging.config.fileConfig('etc/log/log.conf')
 import logger
 
-version = '0.3.3alpha'
-
 ###################
 class Tuple(object):
     """ The class to simply handle tuples """
@@ -577,50 +575,3 @@ class Processor(multiprocessing.Process):
             logging.exception( inst.args )      # arguments stored in .args
             logging.exception( inst )           # __str__ allows args to printed directly
             sys.exit(1)
-
-####################
-# Main
-####################
-logging.info('Stratosphere Linux IPS. Version {}\n'.format(version))
-
-# Parse the parameters
-parser = argparse.ArgumentParser()
-parser.add_argument('-a', '--amount', help='Minimum amount of flows that should be in a tuple to be printed.', action='store', required=False, type=int, default=-1)
-parser.add_argument('-v', '--verbose', help='Amount of verbosity.', action='store', default=1, required=False, type=int)
-parser.add_argument('-w', '--width', help='Width of the time slot used for the analysis. In minutes.', action='store', default=5, required=False, type=int)
-parser.add_argument('-d', '--datawhois', help='Get and show the whois info for the destination IP in each tuple', action='store_true', default=False, required=False)
-parser.add_argument('-D', '--dontdetect', help='Dont detect the malicious behavior in the flows using the models. Just print the connections.', default=False, action='store_true', required=False)
-parser.add_argument('-f', '--folder', help='Folder with models to apply for detection.', action='store', required=False, default='models')
-args = parser.parse_args()
-
-# Global shit for whois cache. The tuple needs to access it but should be shared, so global
-whois_cache = {}
-
-if args.dontdetect:
-    logging.warn('Warning: No detections will be done. Only the behaviors are printed.')
-    # If the folder with models was specified, just ignore it
-    args.folder = False
-
-# Read the folder with models if specified
-if args.folder:
-    onlyfiles = [f for f in listdir(args.folder) if isfile(join(args.folder, f))]
-    logging.info('Detecting malicious behaviors with the following models:')
-    for file in onlyfiles:
-        __markov_models__.set_model_to_detect(join(args.folder, file))
-
-# Create the queue
-queue = Queue()
-# Create the thread and start it
-processorThread = Processor(queue, timedelta(minutes=args.width), args.datawhois, args.verbose, args.amount, args.dontdetect)
-processorThread.start()
-
-# Just put the lines in the queue as fast as possible
-for line in sys.stdin:
-    line = line.strip()
-    if not line == "":
-        queue.put(line)
-    #print 'A: {}'.format(queue.qsize())
-logging.debug('Finished receiving the input.')
-# Shall we wait? Not sure. Seems that not
-time.sleep(1)
-queue.put('stop')
