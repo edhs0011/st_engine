@@ -5,9 +5,7 @@
 
 import sys
 from colors import *
-from datetime import datetime
-from datetime import timedelta
-import argparse
+from datetime import datetime, timedelta
 import multiprocessing
 from multiprocessing import Queue
 import time
