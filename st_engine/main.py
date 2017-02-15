@@ -1,6 +1,11 @@
 import argparse
 import zlib
+import multiprocessing
+import os
 import pandas as pd
+import logging.config
+logging.config.fileConfig('etc/log/log.conf')
+import logger
 from StringIO import StringIO
 from util.preprocess import to_argus
 from subprocess import Popen, PIPE, STDOUT
@@ -8,36 +13,7 @@ from multiprocessing import Queue
 from slips import Tuple, Processor
 from datetime import timedelta
 from modules.markov_models_1 import __markov_models__
-import multiprocessing
-import os
-import logging.config
-logging.config.fileConfig('etc/log/log.conf')
-import logger
-
-class Detection:
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self.read_input()
-        self.queue = Queue()
-        self.processorThread = Processor(self.queue, timedelta(minutes=args.width), args.datawhois, args.verbose, args.amount, args.dontdetect)
-
-    def read_input(self):
-        for file in os.listdir(self.file_path):
-            with open(os.path.join(self.file_path, file)) as f:
-                csv = f.read()
-            stringIO = StringIO(zlib.decompress(csv))
-            df = pd.read_csv(stringIO)
-            try:
-                self.df.append(df, ignore_index=True)
-            except:
-                self.df = df
-
-    def run(self):
-        self.processorThread.start()
-        data = to_argus(self.df)
-        for line in data.strip().split("\n"):
-            self.queue.put(line)
-        self.queue.put('stop')
+from context import Context
 
 def parse():
     parser = argparse.ArgumentParser()
@@ -48,8 +24,7 @@ def parse():
     parser.add_argument('-d', '--datawhois', help='Get and show the whois info for the destination IP in each tuple', action='store_true', default=False, required=False)
     parser.add_argument('-D', '--dontdetect', help='Dont detect the malicious behavior in the flows using the models. Just print the connections.', default=False, action='store_true', required=False)
     parser.add_argument('-f', '--folder', help='Folder with models to apply for detection.', action='store', required=False, default='models')
-    
-    global args
+    parser.add_argument('-o', '--output', help='Folder for the output result.', action='store', required=False, default='output', type=str)
     args = parser.parse_args()
 
     # Global shit for whois cache. The tuple needs to access it but should be shared, so global
@@ -67,10 +42,31 @@ def parse():
         for file in onlyfiles:
             __markov_models__.set_model_to_detect(os.path.join(args.folder, file))
 
+    return args
+
+def read_input(file_path):
+    for file in os.listdir(file_path):
+        with open(os.path.join(file_path, file)) as f:
+            csv = f.read()
+        stringIO = StringIO(zlib.decompress(csv))
+        _df = pd.read_csv(stringIO)
+        try:
+            df.append(_df, ignore_index=True)
+        except:
+            df = _df
+    return df
+
 def main():
-    parse()
-    detection = Detection(args.file_path)
-    detection.run()
+    args = parse()
+    queue = Queue()
+    df = read_input(args.file_path)
+    processorThread = Processor(queue, args.output, timedelta(minutes=args.width), args.datawhois, args.verbose, args.amount, args.dontdetect)
+    processorThread.start()
+
+    data = to_argus(df)
+    for line in data.strip().split("\n"):
+        queue.put(line)
+    queue.put('stop')
 
 if __name__ == "__main__":
     main()

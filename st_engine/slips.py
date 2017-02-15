@@ -4,18 +4,17 @@
 # Author: Sebastian Garcia. eldraco@gmail.com , sebastian.garcia@agents.fel.cvut.cz
 
 import sys
+import multiprocessing
+import time
+import cPickle as pickle
+import logging
 from colors import *
 from datetime import datetime, timedelta
-import multiprocessing
 from multiprocessing import Queue
-import time
 from modules.markov_models_1 import __markov_models__
 from os import listdir
 from os.path import isfile, join
-import cPickle as pickle
-import logging.config
-logging.config.fileConfig('etc/log/log.conf')
-import logger
+
 
 ###################
 class Tuple(object):
@@ -400,7 +399,7 @@ class Tuple(object):
 
 class Processor(multiprocessing.Process):
     """ A class process to run the process of the flows """
-    def __init__(self, queue, slot_width, get_whois, verbose, amount, dontdetect):
+    def __init__(self, queue, f_output, slot_width, get_whois, verbose, amount, dontdetect):
         multiprocessing.Process.__init__(self)
         self.get_whois = get_whois
         self.verbose = verbose
@@ -414,6 +413,10 @@ class Processor(multiprocessing.Process):
         self.dontdetect = dontdetect
         self.pickle_file = "./ext_storage/pre-model.pkl"
         self.load_tuples()
+        self.f_output = f_output
+
+    def __exit__(self):
+        self.f_output.close()
 
     def load_tuples(self):
         """ Load the input from pickle file """
@@ -484,9 +487,11 @@ class Processor(multiprocessing.Process):
                 tuple.set_color(red)
         tuple.add_new_flow(column_values)
         # Detect the first flow of the future timeslot
-        self.detect(tuple)
+        detected = self.detect(tuple)
         # Empty the tuples in this time window
         self.tuples_in_this_time_slot = {}
+
+        return detected
 
     def detect(self, tuple):
         """
@@ -506,12 +511,14 @@ class Processor(multiprocessing.Process):
                     """
                     if self.verbose > 5:
                         logging.debug('Last flow: Detected with {}'.format(label))
+                    return True
                 elif not detected:
                     # Not detected by any reason. No model matching but also the state len is too short.
                     tuple.unset_detected_label()
                     if self.verbose > 5:
                         logging.debug('Last flow: Not detected')
                     tuple.dont_print()
+                    return False
         except Exception as inst:
             logging.exception('\tProblem with detect()')
             logging.exception(type(inst))     # the exception instance
@@ -519,8 +526,18 @@ class Processor(multiprocessing.Process):
             logging.exception(inst)           # __str__ allows args to printed directly
             sys.exit(1)
 
+    def prepare_output(self):
+        if not os.path.exists(self.f_output):
+            os.makedirs(self.f_output)
+        path = os.path.join(self.f_output, "output.csv")
+        try:
+            return open(path, "w")
+        except:
+            logging.exception("Open output file exception")
+
     def run(self):
         try:
+            output = self.prepare_output()
             while True:
                 if not self.queue.empty():
                     line = self.queue.get()
@@ -548,10 +565,17 @@ class Processor(multiprocessing.Process):
                                         tuple.set_color(red)
                                 tuple.add_new_flow(column_values)
                                 # Detection
-                                self.detect(tuple)
+                                detected = self.detect(tuple)
                             elif flowtime > self.slot_endtime:
                                 # Out of time slot
-                                self.process_out_of_time_slot(column_values)
+                                detected = self.process_out_of_time_slot(column_values)
+                            # Output results
+                            if detected:
+                                line = "{}{},\n".format(line, "1")
+                            else:
+                                line = "{}{},\n".format(line, "0")
+                            output.write(line)
+
                         except UnboundLocalError:
                             logging.exception('Probable empty file.')
                     else:
