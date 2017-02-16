@@ -7,7 +7,7 @@ import logging.config
 logging.config.fileConfig('etc/log/log.conf')
 import logger
 from StringIO import StringIO
-from util.preprocess import to_argus
+from util import to_argus
 from subprocess import Popen, PIPE, STDOUT
 from multiprocessing import Queue
 from slips import Tuple, Processor
@@ -63,10 +63,11 @@ def main():
     processorThread = Processor(queue, args.output, timedelta(minutes=args.width), args.datawhois, args.verbose, args.amount, args.dontdetect)
     processorThread.start()
 
-    data = to_argus(df)
+    data = to_argus(df).to_csv(index=False)
     for line in data.strip().split("\n"):
         queue.put(line)
     queue.put('stop')
+    processorThread.join()
 
 if __name__ == "__main__":
     main()

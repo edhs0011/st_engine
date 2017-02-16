@@ -15,4 +15,4 @@ def to_argus(df):
     }
     df.rename(columns=rename, inplace=True)
     df = df.ix[:, col_name]
-    return df.to_csv(index=False)
+    return df

@@ -414,9 +414,7 @@ class Processor(multiprocessing.Process):
         self.pickle_file = "./ext_storage/pre-model.pkl"
         self.load_tuples()
         self.f_output = f_output
-
-    def __exit__(self):
-        self.f_output.close()
+        self.prepare_output()
 
     def load_tuples(self):
         """ Load the input from pickle file """
@@ -531,13 +529,12 @@ class Processor(multiprocessing.Process):
             os.makedirs(self.f_output)
         path = os.path.join(self.f_output, "output.csv")
         try:
-            return open(path, "w")
+            self.output = open(path, "w")
         except:
             logging.exception("Open output file exception")
 
     def run(self):
         try:
-            output = self.prepare_output()
             while True:
                 if not self.queue.empty():
                     line = self.queue.get()
@@ -574,7 +571,7 @@ class Processor(multiprocessing.Process):
                                 line = "{}{},\n".format(line, "1")
                             else:
                                 line = "{}{},\n".format(line, "0")
-                            output.write(line)
+                            self.output.write(line)
 
                         except UnboundLocalError:
                             logging.exception('Probable empty file.')
@@ -583,6 +580,7 @@ class Processor(multiprocessing.Process):
                             # Process the last flows in the last time slot
                             self.process_out_of_time_slot(column_values)
                             self.dump_tuples()
+                            self.output.close()
                         except UnboundLocalError:
                             logging.exception('Probable empty file.')
                             # Here for some reason we still miss the last flow. But since is just one i will let it go for now.
