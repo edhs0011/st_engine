@@ -1,7 +1,7 @@
 FROM ubuntu:14.04
 
 RUN echo "Acquire::http::Proxy \"http://210.61.148.195:8080\";\n" > /etc/apt/apt.conf.d/01proxy && apt-get update && apt-get install --fix-missing -y --no-install-recommends \
-    python-pip \
+    python-pip build-essential \
     && pip install -U pip setuptools \
     && pip install pandas nose mock==2.0 coverage pep8 unittest2 testfixtures
 
