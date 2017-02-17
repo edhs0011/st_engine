@@ -8,7 +8,6 @@ from os import listdir
 from os.path import isfile, join
 import stf.common.markov_chains as mc
 import logging.config
-logging.config.fileConfig('etc/log/log.conf')
 import logger
 
 

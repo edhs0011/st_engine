@@ -2,12 +2,44 @@ import os
 import inspect
 import pandas as pd
 import unittest2 as unittest
-from ..util import to_argus
+from st_engine.util import to_argus
+from st_engine.slips import Processor
 from util import GoldenTestCase
+from testfixtures import Replacer, Replace
+from mock import patch, mock_open, MagicMock
+import mock
+from Queue import Queue
 
 class TestPreprocess(GoldenTestCase):
 
     def test_trans_argus(self):
-        df1 =  self.df("diamond_data_normal")
+        df1 = self.df("diamond_data_normal")
         self.assertGolden(to_argus(df1), "diamond_data_normal")
 
+    def test_slips_processor(self):
+        def _get_queue(queue, data):
+            for line in data.strip().split("\n"):
+                queue.put(line)
+            queue.put('stop')
+
+        def mock_prepare_data(slf):
+            df = pd.DataFrame([i.strip().split(',') for i in slf.output_list])
+            return df
+
+        magic_mock = MagicMock()
+        with Replace('st_engine.slips.Processor.print_output', mock_prepare_data):
+            queue = Queue()
+            args = {
+                "width": 5,
+                "verbose": 0,
+                "amount": -1,
+                "output": "temp_file"
+            }
+            df = self.df("diamond_data_normal", keep=True)
+            df = df.to_csv(index=False)
+
+            proc = Processor(queue, args["output"], args["width"], None, args["verbose"], args["amount"], None)
+            _get_queue(queue, df)
+            proc.run()
+            self.assertGolden(proc.print_output(), "diamond_data_normal_pred")
+            

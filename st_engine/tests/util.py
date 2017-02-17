@@ -36,7 +36,7 @@ class GoldenTestCase(unittest.TestCase):
             _file = os.path.join(_dir, file + ".csv")
             if force:
                 os.remove(_file)
-            obj.to_csv(output)
+            obj.to_csv(output, index=False)
             contents = output.getvalue()
             try:
                 expected_results = open(_file).read()
@@ -61,4 +61,6 @@ class GoldenTestCase(unittest.TestCase):
         
     def assertGolden(self, obj, file):
         contents, expected_results, _file = self.ckeckGolden(obj, file)
+        # print contents
+        # print expected_results
         self.assertEquals(contents, expected_results, "At %s" % _file)

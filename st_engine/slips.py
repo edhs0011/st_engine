@@ -4,13 +4,11 @@
 # Author: Sebastian Garcia. eldraco@gmail.com , sebastian.garcia@agents.fel.cvut.cz
 
 import sys
-import multiprocessing
 import time
 import cPickle as pickle
 import logging
 from colors import *
 from datetime import datetime, timedelta
-from multiprocessing import Queue
 from modules.markov_models_1 import __markov_models__
 from os import listdir
 from os.path import isfile, join
@@ -397,10 +395,11 @@ class Tuple(object):
 # Process
 
 
-class Processor(multiprocessing.Process):
+# class Processor(multiprocessing.Process):
+class Processor():
     """ A class process to run the process of the flows """
     def __init__(self, queue, f_output, slot_width, get_whois, verbose, amount, dontdetect):
-        multiprocessing.Process.__init__(self)
+        # multiprocessing.Process.__init__(self)
         self.get_whois = get_whois
         self.verbose = verbose
         # The amount of letters requested to print minimum
@@ -409,12 +408,12 @@ class Processor(multiprocessing.Process):
         self.tuples_in_this_time_slot = {}
         self.slot_starttime = -1
         self.slot_endtime = -1
-        self.slot_width = slot_width
+        self.slot_width = timedelta(minutes=slot_width)
         self.dontdetect = dontdetect
         self.pickle_file = "./ext_storage/pre-model.pkl"
         self.load_tuples()
+        self.output_list = []
         self.f_output = f_output
-        self.prepare_output()
 
     def load_tuples(self):
         """ Load the input from pickle file """
@@ -524,12 +523,14 @@ class Processor(multiprocessing.Process):
             logging.exception(inst)           # __str__ allows args to printed directly
             sys.exit(1)
 
-    def prepare_output(self):
+    def print_output(self):
         if not os.path.exists(self.f_output):
             os.makedirs(self.f_output)
         path = os.path.join(self.f_output, "output.csv")
         try:
-            self.output = open(path, "w")
+            with open(path, "w") as f:
+                for line in self.output_list:
+                    f.write(line)
         except:
             logging.exception("Open output file exception")
 
@@ -571,16 +572,16 @@ class Processor(multiprocessing.Process):
                                 line = "{}{},\n".format(line, "1")
                             else:
                                 line = "{}{},\n".format(line, "0")
-                            self.output.write(line)
+                            self.output_list.append(line)
 
                         except UnboundLocalError:
                             logging.exception('Probable empty file.')
                     else:
                         try:
                             # Process the last flows in the last time slot
+                            self.print_output()
                             self.process_out_of_time_slot(column_values)
                             self.dump_tuples()
-                            self.output.close()
                         except UnboundLocalError:
                             logging.exception('Probable empty file.')
                             # Here for some reason we still miss the last flow. But since is just one i will let it go for now.

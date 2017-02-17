@@ -1,7 +1,7 @@
 import argparse
 import zlib
-import multiprocessing
 import os
+import sys
 import pandas as pd
 import logging.config
 logging.config.fileConfig('etc/log/log.conf')
@@ -9,13 +9,12 @@ import logger
 from StringIO import StringIO
 from util import to_argus
 from subprocess import Popen, PIPE, STDOUT
-from multiprocessing import Queue
-from slips import Tuple, Processor
-from datetime import timedelta
+from Queue import Queue
+from slips import Processor
 from modules.markov_models_1 import __markov_models__
 from context import Context
 
-def parse():
+def parse(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("file_path", help="the input folder of netflow file", type=str)
     parser.add_argument('-a', '--amount', help='Minimum amount of flows that should be in a tuple to be printed.', action='store', required=False, type=int, default=-1)
@@ -25,7 +24,7 @@ def parse():
     parser.add_argument('-D', '--dontdetect', help='Dont detect the malicious behavior in the flows using the models. Just print the connections.', default=False, action='store_true', required=False)
     parser.add_argument('-f', '--folder', help='Folder with models to apply for detection.', action='store', required=False, default='models')
     parser.add_argument('-o', '--output', help='Folder for the output result.', action='store', required=False, default='output', type=str)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Global shit for whois cache. The tuple needs to access it but should be shared, so global
     whois_cache = {}
@@ -57,17 +56,15 @@ def read_input(file_path):
     return df
 
 def main():
-    args = parse()
+    args = parse(sys.argv[1:])
     queue = Queue()
     df = read_input(args.file_path)
-    processorThread = Processor(queue, args.output, timedelta(minutes=args.width), args.datawhois, args.verbose, args.amount, args.dontdetect)
-    processorThread.start()
-
+    processorThread = Processor(queue, args.output, args.width, args.datawhois, args.verbose, args.amount, args.dontdetect)
     data = to_argus(df).to_csv(index=False)
     for line in data.strip().split("\n"):
         queue.put(line)
     queue.put('stop')
-    processorThread.join()
+    processorThread.run()
 
 if __name__ == "__main__":
     main()
