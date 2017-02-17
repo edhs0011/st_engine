@@ -6,8 +6,6 @@ from st_engine.util import to_argus
 from st_engine.slips import Processor
 from util import GoldenTestCase
 from testfixtures import Replacer, Replace
-from mock import patch, mock_open, MagicMock
-import mock
 from Queue import Queue
 
 class TestPreprocess(GoldenTestCase):
@@ -22,12 +20,11 @@ class TestPreprocess(GoldenTestCase):
                 queue.put(line)
             queue.put('stop')
 
-        def mock_prepare_data(slf):
+        def mock_print_data(slf):
             df = pd.DataFrame([i.strip().split(',') for i in slf.output_list])
             return df
 
-        magic_mock = MagicMock()
-        with Replace('st_engine.slips.Processor.print_output', mock_prepare_data):
+        with Replace('st_engine.slips.Processor.print_output', mock_print_data):
             queue = Queue()
             args = {
                 "width": 5,
