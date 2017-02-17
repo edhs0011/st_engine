@@ -1,5 +1,4 @@
 import os
-import inspect
 import pandas as pd
 import unittest2 as unittest
 from st_engine.util import to_argus

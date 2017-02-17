@@ -1,14 +1,14 @@
 # This file is part of the Stratosphere Linux IPS
 # See the file 'LICENSE' for copying permission.
 
-from colors import *
+from st_engine.colors import *
 import cPickle
 import math
 from os import listdir
 from os.path import isfile, join
-import stf.common.markov_chains as mc
+import st_engine.stf.common.markov_chains as mc
 import logging.config
-import logger
+from st_engine import logger
 
 
 class Model():
