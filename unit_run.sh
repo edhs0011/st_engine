@@ -1,1 +1,1 @@
-nosetests --with-xunit -d --with-coverage --cover-package=st_engine --cover-html --traverse-namespace --cover-inclusive
+nosetests --with-xunit -d --with-coverage --cover-package=src --cover-html --traverse-namespace --cover-inclusive
